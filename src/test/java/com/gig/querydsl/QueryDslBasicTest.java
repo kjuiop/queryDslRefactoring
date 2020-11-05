@@ -4,8 +4,12 @@ import com.gig.querydsl.domain.PocketMon;
 import com.gig.querydsl.domain.PocketMonMaster;
 import com.gig.querydsl.domain.QPocketMon;
 import com.gig.querydsl.domain.QPocketMonMaster;
+import com.gig.querydsl.dto.PocketMonBaseDto;
+import com.gig.querydsl.dto.QPocketMonBaseDto;
 import com.querydsl.core.QueryResults;
 import com.querydsl.core.Tuple;
+import com.querydsl.core.types.ExpressionUtils;
+import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
@@ -489,7 +493,129 @@ public class QueryDslBasicTest {
             }
     }
 
+    @Test
+    public void simpleProjection() {
+        List<String> result = queryFactory
+                .select(pocketMon.name)
+                .from(pocketMon)
+                .fetch();
 
+        for (String s : result) {
+            System.out.println("s = " + s);
+        }
+    }
 
+    @Test
+    public void tupleProjection() {
+        List<Tuple> result = queryFactory
+                .select(pocketMon.name, pocketMon.level)
+                .from(pocketMon)
+                .fetch();
+
+        for (Tuple tuple : result) {
+            String name = tuple.get(pocketMon.name);
+            int level = tuple.get(pocketMon.level);
+            System.out.println("name = " + name);
+            System.out.print("level = " + level);
+        }
+    }
+
+    @Test
+    public void findDtoByJPQL() {
+        List<PocketMonBaseDto> result = em.createQuery("select new com.gig.querydsl.dto.PocketMonBaseDto(p.name, p.level)  from PocketMon p", PocketMonBaseDto.class)
+                .getResultList();
+
+        for (PocketMonBaseDto dto : result) {
+            System.out.println("pocketmonDto = " + dto);
+        }
+    }
+
+    @Test
+    public void findDtoBySetter() {
+        List<PocketMonBaseDto> result = queryFactory
+                .select(Projections.bean(PocketMonBaseDto.class,
+                        pocketMon.name,
+                        pocketMon.level))
+                .from(pocketMon)
+                .fetch();
+
+        for (PocketMonBaseDto dto : result) {
+            System.out.println("pocketmonDto = " + dto);
+        }
+    }
+
+    // 생성자 없이 필드에다가 바로 데이터를 주입해줌.
+    @Test
+    public void findDtoByField() {
+        List<PocketMonBaseDto> result = queryFactory
+                .select(Projections.fields(PocketMonBaseDto.class,
+                        pocketMon.name,
+                        // 필드명이 다를때는 as 를 사용할 수 있다. pocketMon.name.as("name"),
+                        pocketMon.level))
+                .from(pocketMon)
+                .fetch();
+
+        for (PocketMonBaseDto dto : result) {
+            System.out.println("pocketmonDto = " + dto);
+        }
+    }
+
+    /**
+     * 생성자는 타입, 순서를 매칭해서 가져오기 때문에 필드명과는 관계없다.
+     */
+    @Test
+    public void findDtoByConstructor() {
+        List<PocketMonBaseDto> result = queryFactory
+                .select(Projections.constructor(PocketMonBaseDto.class,
+                        pocketMon.name,
+                        pocketMon.level))
+                .from(pocketMon)
+                .fetch();
+
+        for (PocketMonBaseDto dto : result) {
+            System.out.println("pocketmonDto = " + dto);
+        }
+    }
+
+    /**
+     * 서브쿼리의 결과를 as 를 통해 기존 필드에 주입시킬 수 있음.
+     */
+    @Test
+    public void findDtoByFielAndSubquery() {
+        QPocketMon pocketMonSub = new QPocketMon("pocketmonSub");
+
+        List<PocketMonBaseDto> result = queryFactory
+                .select(Projections.fields(PocketMonBaseDto.class,
+                        pocketMon.name,
+                        ExpressionUtils.as(JPAExpressions
+                            .select(pocketMonSub.level.max())
+                            .from(pocketMonSub), "level")))
+                .from(pocketMon)
+                .fetch();
+
+        for (PocketMonBaseDto dto : result) {
+            System.out.println("pocketmonDto = " + dto);
+        }
+    }
+
+    /**
+     * Constructor 방법은 컴파일 단계에서 오류가 생기지 않음
+     * QueryProjection 방법은 컴파일 단계에서 오류가 생김
+     * 단점 : Q파일을 생성해야 한다.
+     * DTO 클래스 자체가 QueryDsl 의존관계를 갖게 된다.
+     * DTO 는 컨트롤러 등등 여러 군데에 돌아다니는 Bean 이라 의존성 생기면
+     * 곤란해질 수 있음.
+     */
+    @Test
+    public void findDtoByQueryProjection() {
+        List<PocketMonBaseDto> result = queryFactory
+                .select(new QPocketMonBaseDto(pocketMon.name, pocketMon.level))
+                .from(pocketMon)
+                .fetch();
+
+        for (PocketMonBaseDto dto : result) {
+            System.out.println("pocketmonDto = " + dto);
+        }
+    }
 }
 
