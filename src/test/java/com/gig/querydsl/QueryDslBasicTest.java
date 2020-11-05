@@ -6,17 +6,22 @@ import com.gig.querydsl.domain.QPocketMon;
 import com.gig.querydsl.domain.QPocketMonMaster;
 import com.gig.querydsl.dto.PocketMonBaseDto;
 import com.gig.querydsl.dto.QPocketMonBaseDto;
+import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.QueryResults;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.ExpressionUtils;
+import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.internal.creation.bytebuddy.InlineBytecodeGenerator;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.Commit;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.persistence.EntityManager;
@@ -617,5 +622,119 @@ public class QueryDslBasicTest {
             System.out.println("pocketmonDto = " + dto);
         }
     }
+
+    /**
+     * 동적 쿼리 가능 ( 조건 절이 달라지거나, 값이 달라지는 걸 보완 )
+     * 파라미터 값이 null 이라도 자동으로 제외해서 쿼리를 만들어줌
+     */
+    @Test
+    public void dynamicQuery_BooleanBuilder() {
+        String nameParam = "pocketmon1";
+        Integer levelParam = 23;
+
+        List<PocketMon> result = searchPocketMon1(nameParam, levelParam);
+        assertThat(result.size()).isEqualTo(1);
+    }
+
+    private List<PocketMon> searchPocketMon1(String nameCond, Integer levelCond) {
+
+        // 이런식으로 초기값을 설정해줄 수 있음.
+        // BooleanBuilder builder = new BooleanBuilder(pocketMon.name.eq(nameCond));
+        BooleanBuilder builder = new BooleanBuilder();
+        if (nameCond != null) {
+            builder.and(pocketMon.name.eq(nameCond));
+        }
+
+        if (levelCond != null) {
+            builder.and(pocketMon.level.eq(levelCond));
+        }
+
+        return queryFactory.selectFrom(pocketMon)
+                .where(builder)
+                .fetch();
+    }
+
+    /**
+     * null 값 무시된다.
+     * 위처럼 앞에서 정의할 필요 없이 밑에 메소드를 추가해주면
+     * 추후 소스를 볼 때 간편하게 볼 수 있다. ( 가독성 up )
+     * 동일한 where 절이면 다른 도메인을 활용한 쿼리에서도 재사용할 수 있다.
+     * QueryProjection 활용
+     */
+    @Test
+    public void dynamicQuery_WhereParam() {
+        String nameParam = "pocketmon1";
+        Integer levelParam = 23;
+
+        List<PocketMon> result = searchPocketMon2(nameParam, levelParam);
+        assertThat(result.size()).isEqualTo(1);
+    }
+
+    private List<PocketMon> searchPocketMon2(String nameCond, Integer levelCond) {
+        return queryFactory
+                .selectFrom(pocketMon)
+                // .where(nameEq(nameCond), levelEq(levelCond))
+                .where(allEq(nameCond, levelCond))
+                .fetch();
+    }
+
+    @Test
+    // @Commit
+    public void bulkUpdate() {
+        long count = queryFactory
+            .update(pocketMon)
+            .set(pocketMon.name, "최종진화")
+            .where(pocketMon.level.lt(20))
+            .execute();
+
+        // 영속성 데이터와 실제 DB 데이터가 안맞을 수 있기 때문에
+        // 이런 수정작업 후에는 영속성을 초기화해주는 것이 좋다.
+
+        em.flush();
+        em.clear();
+
+
+        // JPA 는 영속성 컨텍스트를 우선적으로 생각하기 때문에
+        // DB의 값이 실제로 바뀌어도 밑의 select 절은 바뀌기 전의 영속성 데이터를
+        // 사용한다.
+        List<PocketMon> result = queryFactory
+                .selectFrom(pocketMon)
+                .fetch();
+
+        for (PocketMon pocketMon : result) {
+            System.out.println("pocketmon : " + pocketMon);
+        }
+    }
+
+    @Test
+    public void bulkAdd() {
+        long count = queryFactory
+                .update(pocketMon)
+                .set(pocketMon.level, pocketMon.level.add(3))
+                // .set(pocketMon.level, pocketMon.level.multiply(2))
+                .execute();
+    }
+
+    @Test
+    public void bulkDelete() {
+        long count = queryFactory
+                .delete(pocketMon)
+                .where(pocketMon.level.gt(10))
+                .execute();
+    }
+
+
+    private BooleanExpression nameEq(String nameCond) {
+        return nameCond == null ? null : pocketMon.name.eq(nameCond);
+    }
+
+    private BooleanExpression levelEq(Integer levelCond) {
+        return levelCond == null ? null : pocketMon.level.eq(levelCond);
+    }
+
+    private BooleanExpression allEq(String nameCond, Integer levelCond) {
+        return nameEq(nameCond).and(levelEq(levelCond));
+    }
+
 }
 
