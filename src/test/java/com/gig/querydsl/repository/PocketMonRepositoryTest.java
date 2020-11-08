@@ -2,6 +2,7 @@ package com.gig.querydsl.repository;
 
 import com.gig.querydsl.domain.PocketMon;
 import com.gig.querydsl.domain.PocketMonMaster;
+import com.gig.querydsl.domain.QPocketMon;
 import com.gig.querydsl.dto.PocketMonMasterDto;
 import com.gig.querydsl.dto.PocketMonSearchCondition;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -88,5 +89,14 @@ class PocketMonRepositoryTest {
 
         assertThat(result.getSize()).isEqualTo(3);
         assertThat(result.getContent()).extracting("name").containsExactly("pocketmon1", "pocketmon2", "pocketmon3");
+    }
+
+    @Test
+    public void querydslPredicateExecutorTest() {
+        QPocketMon pocketMon = QPocketMon.pocketMon;
+        Iterable<PocketMon> result = pocketMonRepository.findAll(pocketMon.level.between(35, 40).and(pocketMon.name.eq("pocketmon4")));
+        for (PocketMon findPocketMon : result) {
+            System.out.println("pocketmon = " + findPocketMon);
+        }
     }
 }

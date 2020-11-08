@@ -10,6 +10,7 @@ import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.jpa.repository.support.QuerydslRepositorySupport;
 import org.springframework.data.repository.support.PageableExecutionUtils;
 
 import javax.persistence.EntityManager;
@@ -28,8 +29,15 @@ public class PocketMonRepositoryImpl implements PocketMonRepositoryCustom{
         this.queryFactory = new JPAQueryFactory(em);
     }
 
+    // extends QuerydslRepositorySupport
+
+//    public PocketMonRepositoryImpl() {
+//        super(PocketMon.class);
+//    }
+
     @Override
     public List<PocketMonMasterDto> search(PocketMonSearchCondition condition) {
+
         return queryFactory
                 .select(new QPocketMonMasterDto(
                         pocketMon.id.as("pocketMonId"),
@@ -51,6 +59,8 @@ public class PocketMonRepositoryImpl implements PocketMonRepositoryCustom{
 
     @Override
     public Page<PocketMonMasterDto> searchPageSimple(PocketMonSearchCondition condition, org.springframework.data.domain.Pageable pageable) {
+
+
         QueryResults<PocketMonMasterDto> results = queryFactory
                 .select(new QPocketMonMasterDto(
                         pocketMon.id.as("pocketMonId"),
@@ -76,6 +86,32 @@ public class PocketMonRepositoryImpl implements PocketMonRepositoryCustom{
 
         return new PageImpl<>(content, pageable, total);
     }
+
+//    public Page<PocketMonMasterDto> searchPageSimple2(PocketMonSearchCondition condition, org.springframework.data.domain.Pageable pageable) {
+//
+//        JPAQuery<PocketMonMasterDto> jpaQuery = (JPAQuery<PocketMonMasterDto>) from(pocketMon)
+//                .leftJoin(pocketMon.pocketMonMaster, pocketMonMaster)
+//                .where(
+//                        nameEq(condition.getPocketMonName()),
+//                        pocketMonMasterNameEq(condition.getPocketMonMasterName()),
+//                        levelGoe(condition.getLevelGoe()),
+//                        levelLoe(condition.getLevelLoe())
+//                )
+//                .select(new QPocketMonMasterDto(
+//                        pocketMon.id.as("pocketMonId"),
+//                        pocketMon.name.as("name"),
+//                        pocketMon.level.as("level"),
+//                        pocketMon.pocketMonMaster.id.as("pocketMonMasterId"),
+//                        pocketMon.pocketMonMaster.name.as("pocketMonMasterName")
+//                ));
+//
+//        JPAQuery<PocketMonMasterDto> query = (JPAQuery<PocketMonMasterDto>) getQuerydsl().applyPagination(pageable, jpaQuery);
+//
+////        List<PocketMonMasterDto> content = results.getResults();
+////        long total = results.getTotal();
+//
+//        return new PageImpl<>(query.fetch(), pageable, query.fetchCount());
+//    }
 
     @Override
     public Page<PocketMonMasterDto> searchPageComplex(PocketMonSearchCondition condition, org.springframework.data.domain.Pageable pageable) {
