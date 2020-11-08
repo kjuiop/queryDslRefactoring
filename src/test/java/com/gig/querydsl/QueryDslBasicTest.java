@@ -723,6 +723,37 @@ public class QueryDslBasicTest {
                 .execute();
     }
 
+    // H2Dialect 에 function 이 등록되어있어야함
+    @Test
+    public void sqlFunction() {
+        List<String> result = queryFactory
+                .select(
+                        Expressions.stringTemplate("function('replace', {0}, {1}, {2})",
+                                pocketMon.name, "pocketmon", "p"))
+                .from(pocketMon)
+                .fetch();
+
+        for (String s : result) {
+            System.out.println("tuple = " + s);
+        }
+    }
+
+    @Test
+    public void sqlFunction2() {
+        List<String> result = queryFactory
+                .select(pocketMon.name)
+                .from(pocketMon)
+//                .where(pocketMon.name.eq(
+//                        Expressions.stringTemplate("function('lower', {0})", pocketMon.name)
+//                ))
+                .where(pocketMon.name.eq(pocketMon.name.lower()))
+                .fetch();
+
+        for (String s : result) {
+            System.out.println("tuple = " + s);
+        }
+    }
+
 
     private BooleanExpression nameEq(String nameCond) {
         return nameCond == null ? null : pocketMon.name.eq(nameCond);
